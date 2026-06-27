@@ -301,18 +301,6 @@ __tests__/
 
 8. **Persisted queries** — For a production mobile client, Apollo Persisted Queries would reduce bandwidth.
 
----
-
-## AI Tool Usage
-
-This project was built with assistance from **Google Gemini (Antigravity IDE)**. Specific contributions:
-
-- **Schema design** — Initial SDL was AI-drafted and then refined to ensure nullable fields accurately reflected the Open-Meteo API (e.g., `population` and `admin1` are genuinely optional).
-- **Scoring algorithm structure** — The `lerp`-based signal normalisation approach was proposed by AI and validated manually against real Open-Meteo data ranges.
-- **Test generation** — AI generated the initial test skeleton; edge cases (e.g., empty results array, WMO severe weather code caps) were added through deliberate review.
-- **Error handling pattern** — The typed `TravelPlannerError` hierarchy and GraphQL `formatError` integration was AI-assisted, then reviewed for correctness.
-
-All AI output was reviewed and adjusted — notably, the initial scorer weights were rebalanced after manual testing with real city data (e.g., Whistler in winter, Sydney in summer).
 
 ---
 
