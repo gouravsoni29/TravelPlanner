@@ -1,5 +1,4 @@
-import { AxiosInstance } from 'axios';
-import { createHttpClient } from '../utils/httpClient';
+import { createHttpClient, FetchHttpClient } from '../utils/httpClient';
 import { TravelPlannerError, ErrorCode } from '../utils/errors';
 import { City, DailyForecast, WeatherForecast } from '../types';
 import { config } from '../config';
@@ -17,6 +16,8 @@ const DAILY_VARIABLES = [
   'snowfall_sum',
   'uv_index_max',
 ].join(',');
+
+const FORECAST_DAYS = 7;
 
 /** Raw daily arrays returned by the Open-Meteo forecast API */
 interface ForecastDailyRaw {
@@ -38,6 +39,14 @@ interface ForecastApiResponse {
   generationtime_ms: number;
 }
 
+function unwrapForecastResponse(response: ForecastApiResponse | { data: ForecastApiResponse }): ForecastApiResponse {
+  if (response && typeof response === 'object' && 'data' in response) {
+    return (response as { data: ForecastApiResponse }).data;
+  }
+
+  return response as ForecastApiResponse;
+}
+
 /**
  * WeatherService wraps the Open-Meteo Forecast API.
  *
@@ -45,9 +54,9 @@ interface ForecastApiResponse {
  * mock it without network calls.
  */
 export class WeatherService {
-  private readonly client: AxiosInstance;
+  private readonly client: FetchHttpClient;
 
-  constructor(client?: AxiosInstance) {
+  constructor(client?: FetchHttpClient) {
     this.client = client ?? createHttpClient(config.weatherBaseUrl);
   }
 
@@ -59,16 +68,14 @@ export class WeatherService {
    */
   async getForecast(city: City): Promise<WeatherForecast> {
     const response = await this.client.get<ForecastApiResponse>('/forecast', {
-      params: {
-        latitude: city.latitude,
-        longitude: city.longitude,
-        daily: DAILY_VARIABLES,
-        timezone: city.timezone ?? 'UTC',
-        forecast_days: 7,
-      },
+      latitude: city.latitude,
+      longitude: city.longitude,
+      daily: DAILY_VARIABLES,
+      timezone: city.timezone ?? 'UTC',
+      forecast_days: FORECAST_DAYS,
     });
 
-    const raw = response.data;
+    const raw = unwrapForecastResponse(response);
 
     if (!raw.daily || !raw.daily.time || raw.daily.time.length === 0) {
       throw new TravelPlannerError(

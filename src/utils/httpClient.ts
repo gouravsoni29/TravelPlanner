@@ -1,50 +1,69 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
 import { TravelPlannerError, ErrorCode } from './errors';
 
-/**
- * Creates a configured Axios instance for a given base URL.
- * Centralises timeout, headers, and error normalisation so all
- * service modules get consistent HTTP behaviour without duplication.
- */
-export function createHttpClient(baseURL: string): AxiosInstance {
-  const client = axios.create({
-    baseURL,
-    timeout: 10_000, // 10 s — reasonable for external weather APIs
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-  });
+const DEFAULT_TIMEOUT_MS = 10_000;
 
-  // Response interceptor: normalise upstream errors into domain errors
-  client.interceptors.response.use(
-    (response) => response,
-    (error: AxiosError) => {
-      if (error.response) {
-        // The server responded with a non-2xx status
-        throw new TravelPlannerError(
-          `Upstream API error: ${error.response.status} ${error.response.statusText}`,
-          ErrorCode.UPSTREAM_API_ERROR,
-          { status: error.response.status, url: error.config?.url },
-        );
-      }
+export interface FetchHttpClient {
+  get<T>(path: string, params?: Record<string, string | number | boolean>): Promise<T>;
+}
 
-      if (error.request) {
-        // Request was made but no response received
+function buildQueryString(params: Record<string, string | number | boolean> = {}): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null) {
+      search.set(key, String(value));
+    }
+  }
+  const query = search.toString();
+  return query.length ? `?${query}` : '';
+}
+
+export function createHttpClient(baseURL: string): FetchHttpClient {
+  return {
+    async get<T>(path: string, params?: Record<string, string | number | boolean>): Promise<T> {
+      const url = `${baseURL}${path}${buildQueryString(params)}`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new TravelPlannerError(
+            `Upstream API error: ${response.status} ${response.statusText}`,
+            ErrorCode.UPSTREAM_API_ERROR,
+            { status: response.status, url },
+          );
+        }
+
+        const body = await response.json();
+        return body as T;
+      } catch (error: unknown) {
+        if (error instanceof TravelPlannerError) {
+          throw error;
+        }
+
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          throw new TravelPlannerError(
+            'No response from upstream API — network or timeout issue',
+            ErrorCode.NETWORK_ERROR,
+            { url },
+          );
+        }
+
         throw new TravelPlannerError(
-          'No response from upstream API — network or timeout issue',
+          error instanceof Error ? `Request failed: ${error.message}` : 'Request failed',
           ErrorCode.NETWORK_ERROR,
-          { url: error.config?.url },
         );
+      } finally {
+        clearTimeout(timeout);
       }
-
-      // Something went wrong setting up the request
-      throw new TravelPlannerError(
-        `Request setup failed: ${error.message}`,
-        ErrorCode.NETWORK_ERROR,
-      );
     },
-  );
-
-  return client;
+  };
 }

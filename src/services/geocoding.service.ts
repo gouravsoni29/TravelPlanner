@@ -1,8 +1,11 @@
-import { AxiosInstance } from 'axios';
-import { createHttpClient } from '../utils/httpClient';
+import { createHttpClient, FetchHttpClient } from '../utils/httpClient';
 import { TravelPlannerError, ErrorCode } from '../utils/errors';
 import { City } from '../types';
 import { config } from '../config';
+
+const DEFAULT_COUNT = 10;
+const MAX_COUNT = 100;
+const MIN_COUNT = 1;
 
 /**
  * Raw shape of a single result from the Open-Meteo Geocoding API.
@@ -25,6 +28,14 @@ interface GeocodingApiResponse {
   generationtime_ms?: number;
 }
 
+function unwrapGeocodingResponse(response: GeocodingApiResponse | { data: GeocodingApiResponse }): GeocodingApiResponse {
+  if (response && typeof response === 'object' && 'data' in response) {
+    return (response as { data: GeocodingApiResponse }).data;
+  }
+
+  return response as GeocodingApiResponse;
+}
+
 /**
  * GeocodingService wraps the Open-Meteo Geocoding API.
  *
@@ -33,9 +44,9 @@ interface GeocodingApiResponse {
  * touching the network.
  */
 export class GeocodingService {
-  private readonly client: AxiosInstance;
+  private readonly client: FetchHttpClient;
 
-  constructor(client?: AxiosInstance) {
+  constructor(client?: FetchHttpClient) {
     this.client = client ?? createHttpClient(config.geocodingBaseUrl);
   }
 
@@ -46,27 +57,19 @@ export class GeocodingService {
    * @param count  - Maximum number of results to return (1–100, default 10)
    * @returns      Array of matching City objects, empty array if none found
    */
-  async searchCities(query: string, count: number = 10): Promise<City[]> {
-    if (!query || query.trim().length === 0) {
-      throw new TravelPlannerError(
-        'Search query must not be empty',
-        ErrorCode.VALIDATION_ERROR,
-      );
-    }
-
-    const clampedCount = Math.min(Math.max(count, 1), 100);
+  async searchCities(query: string, count: number = DEFAULT_COUNT): Promise<City[]> {
+    this.assertValidQuery(query);
 
     const response = await this.client.get<GeocodingApiResponse>('/search', {
-      params: {
-        name: query.trim(),
-        count: clampedCount,
-        format: 'json',
-        language: 'en',
-      },
+      name: query.trim(),
+      count: this.clampCount(count),
+      format: 'json',
+      language: 'en',
     });
 
-    const results = response.data.results ?? [];
-    return results.map((r) => this.mapToCity(r));
+    const payload = unwrapGeocodingResponse(response);
+    const results = payload.results ?? [];
+    return results.map((r: GeocodingResult) => this.mapToCity(r));
   }
 
   /**
@@ -74,6 +77,19 @@ export class GeocodingService {
    * The composite `id` ("lat,lon") is used downstream to uniquely identify
    * a city without requiring a database — keeps the API fully stateless.
    */
+  private assertValidQuery(query: string): void {
+    if (!query || query.trim().length === 0) {
+      throw new TravelPlannerError(
+        'Search query must not be empty',
+        ErrorCode.VALIDATION_ERROR,
+      );
+    }
+  }
+
+  private clampCount(count: number): number {
+    return Math.min(Math.max(count, MIN_COUNT), MAX_COUNT);
+  }
+
   private mapToCity(result: GeocodingResult): City {
     return {
       id: `${result.latitude},${result.longitude}`,

@@ -1,6 +1,6 @@
 import { weatherService, WeatherService } from '../services/weather.service';
 import { rankActivities } from '../scoring/activityScorer';
-import { City } from '../types';
+import { createCityFromCoordinates } from '../utils/city';
 
 export interface ActivityRankingsArgs {
   cityId: string;
@@ -17,18 +17,7 @@ export const activitiesResolver = {
   Query: {
     activityRankings: async (_parent: unknown, { cityId }: ActivityRankingsArgs) => {
       const { latitude, longitude } = WeatherService.parseCityId(cityId);
-
-      const city: City = {
-        id: cityId,
-        name: `${latitude}, ${longitude}`,
-        country: null,
-        countryCode: null,
-        admin1: null,
-        latitude,
-        longitude,
-        timezone: null,
-        population: null,
-      };
+      const city = createCityFromCoordinates(cityId, latitude, longitude);
 
       const forecast = await weatherService.getForecast(city);
       return rankActivities(forecast.daily);

@@ -1,4 +1,6 @@
-import type { AxiosInstance } from 'axios';
+/// <reference types="jest" />
+import { describe, expect, it, jest } from '@jest/globals';
+import type { FetchHttpClient } from '../../src/utils/httpClient';
 import { WeatherService } from '../../src/services/weather.service';
 import { TravelPlannerError, ErrorCode } from '../../src/utils/errors';
 import { City } from '../../src/types';
@@ -31,8 +33,8 @@ function makeRawDailyResponse(days: number = 7) {
 }
 
 function buildMockClient(responseData: unknown) {
-  const mockGet = jest.fn().mockResolvedValue({ data: responseData });
-  return { get: mockGet } as unknown as AxiosInstance;
+  const mockGet = jest.fn(async () => responseData);
+  return { get: mockGet as FetchHttpClient['get'] } as FetchHttpClient;
 }
 
 describe('WeatherService', () => {
@@ -94,16 +96,14 @@ describe('WeatherService', () => {
     });
 
     it('passes correct query parameters to the API', async () => {
-      const mockGet = jest.fn().mockResolvedValue({
-        data: {
-          latitude: 51.5,
-          longitude: -0.1,
-          timezone: 'Europe/London',
-          generationtime_ms: 1,
-          daily: makeRawDailyResponse(),
-        },
-      });
-      const mockClient = { get: mockGet } as unknown as AxiosInstance;
+      const mockGet = jest.fn(async () => ({
+        latitude: 51.5,
+        longitude: -0.1,
+        timezone: 'Europe/London',
+        generationtime_ms: 1,
+        daily: makeRawDailyResponse(),
+      }));
+      const mockClient = { get: mockGet as FetchHttpClient['get'] } as FetchHttpClient;
       const service = new WeatherService(mockClient);
 
       await service.getForecast(testCity);
@@ -111,11 +111,9 @@ describe('WeatherService', () => {
       expect(mockGet).toHaveBeenCalledWith(
         '/forecast',
         expect.objectContaining({
-          params: expect.objectContaining({
-            latitude: 51.50853,
-            longitude: -0.12574,
-            forecast_days: 7,
-          }),
+          latitude: 51.50853,
+          longitude: -0.12574,
+          forecast_days: 7,
         }),
       );
     });

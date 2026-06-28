@@ -43,7 +43,7 @@ src/
 ├── scoring/
 │   └── activityScorer.ts      # Pure scoring logic — no I/O, fully testable
 └── utils/
-    ├── httpClient.ts           # Axios factory with centralised error handling
+    ├── httpClient.ts           # Fetch wrapper with centralised error handling
     └── errors.ts              # Typed error hierarchy
 ```
 
@@ -56,7 +56,7 @@ src/
 | Stateless `cityId` | `"lat,lon"` composite key | No database needed — all queries are stateless and composable |
 | Service injection | Class constructors accept optional HTTP client | Enables full test isolation without environment variables |
 | Pure scorers | No I/O in `activityScorer.ts` | Pure functions are trivially unit-testable with no mocking |
-| Axios interceptors | Centralised in `httpClient.ts` | Error normalisation happens once, not in every service |
+| Fetch wrapper | Centralised in `httpClient.ts` | Error normalisation happens once, not in every service |
 
 ### Data Flow
 

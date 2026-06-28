@@ -3,9 +3,16 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "./dist-test",
+    "types": [
+      "node",
+      "jest"
+    ],
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noImplicitReturns": false
   },
-  "include": ["src/**/*", "__tests__/**/*"]
+  "include": [
+    "src/**/*",
+    "__tests__/**/*"
+  ]
 }

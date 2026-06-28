@@ -1,27 +1,12 @@
-import type { AxiosInstance } from 'axios';
+import { describe, expect, it, jest } from '@jest/globals';
+import type { FetchHttpClient } from '../../src/utils/httpClient';
 import { GeocodingService } from '../../src/services/geocoding.service';
 import { TravelPlannerError, ErrorCode } from '../../src/utils/errors';
 
-// Mock axios so the module-level `geocodingService` singleton can be safely
-// instantiated at import time without making real HTTP calls.
-// Individual tests inject their own mockClient directly into the constructor.
-jest.mock('axios', () => ({
-  create: jest.fn(() => ({
-    get: jest.fn(),
-    interceptors: { response: { use: jest.fn() } },
-  })),
-  default: {
-    create: jest.fn(() => ({
-      get: jest.fn(),
-      interceptors: { response: { use: jest.fn() } },
-    })),
-  },
-}));
-
-/** Build a fake Axios instance for direct injection into GeocodingService */
+/** Build a fake FetchHttpClient for direct injection into GeocodingService */
 function buildMockClient(responseData: unknown) {
-  const mockGet = jest.fn().mockResolvedValue({ data: responseData });
-  return { get: mockGet, interceptors: { response: { use: jest.fn() } } } as unknown as AxiosInstance;
+  const mockGet = jest.fn(async (_path: string, _params?: Record<string, string | number | boolean>) => responseData);
+  return { get: mockGet } as unknown as FetchHttpClient;
 }
 
 const sampleResults = [
@@ -123,28 +108,28 @@ describe('GeocodingService', () => {
     });
 
     it('clamps count to 100', async () => {
-      const mockGet = jest.fn().mockResolvedValue({ data: { results: [] } });
-      const mockClient = { get: mockGet } as unknown as AxiosInstance;
+      const mockGet = jest.fn(async () => ({ results: [] }));
+      const mockClient = { get: mockGet } as unknown as FetchHttpClient;
       const service = new GeocodingService(mockClient);
 
       await service.searchCities('London', 999);
 
       expect(mockGet).toHaveBeenCalledWith(
         '/search',
-        expect.objectContaining({ params: expect.objectContaining({ count: 100 }) }),
+        expect.objectContaining({ count: 100 }),
       );
     });
 
     it('clamps count to minimum of 1', async () => {
-      const mockGet = jest.fn().mockResolvedValue({ data: { results: [] } });
-      const mockClient = { get: mockGet } as unknown as AxiosInstance;
+      const mockGet = jest.fn(async () => ({ results: [] }));
+      const mockClient = { get: mockGet } as unknown as FetchHttpClient;
       const service = new GeocodingService(mockClient);
 
       await service.searchCities('London', 0);
 
       expect(mockGet).toHaveBeenCalledWith(
         '/search',
-        expect.objectContaining({ params: expect.objectContaining({ count: 1 }) }),
+        expect.objectContaining({ count: 1 }),
       );
     });
   });

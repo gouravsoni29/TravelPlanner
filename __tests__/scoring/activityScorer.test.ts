@@ -1,4 +1,6 @@
+import { describe, expect, it } from '@jest/globals';
 import {
+  activityScorers,
   scoreSkiing,
   scoreSurfing,
   scoreIndoorSightseeing,
@@ -213,10 +215,11 @@ describe('scoreOutdoorSightseeing', () => {
 // ---------------------------------------------------------------------------
 
 describe('rankActivities', () => {
-  it('returns 4 rankings', () => {
+  it('returns one ranking per registered activity scorer', () => {
     const daily = makeWeek();
     const rankings = rankActivities(daily);
-    expect(rankings).toHaveLength(4);
+    expect(rankings).toHaveLength(activityScorers.length);
+    expect(new Set(rankings.map((ranking) => ranking.activity)).size).toBe(activityScorers.length);
   });
 
   it('returns rankings sorted by score descending', () => {

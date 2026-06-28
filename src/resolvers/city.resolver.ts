@@ -1,4 +1,5 @@
 import { geocodingService } from '../services/geocoding.service';
+import { rememberCityName } from '../utils/city';
 
 export interface CitySuggestionsArgs {
   query: string;
@@ -18,7 +19,9 @@ export const cityResolver = {
       _parent: unknown,
       { query, count = 10 }: CitySuggestionsArgs,
     ) => {
-      return geocodingService.searchCities(query, count);
+      const cities = await geocodingService.searchCities(query, count);
+      cities.forEach((city) => rememberCityName(city.id, city.name));
+      return cities;
     },
   },
 };

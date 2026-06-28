@@ -1,28 +1,17 @@
 import { weatherService, WeatherService } from '../services/weather.service';
-import { City } from '../types';
+import { createCityFromCoordinates } from '../utils/city';
 
 export interface WeatherForecastArgs {
   cityId: string;
 }
 
 /**
- * Resolves a cityId ("lat,lon") back into a minimal City object.
- * Since there's no database, we reconstruct what we can from the coordinates.
- * The city name and metadata are fetched from the forecast API response context.
+ * Reconstruct a minimal City from a composite city id.
+ * The resolver stays thin while the helper keeps the fallback shape consistent.
  */
-function buildCityFromId(cityId: string): City {
+function buildCityFromId(cityId: string) {
   const { latitude, longitude } = WeatherService.parseCityId(cityId);
-  return {
-    id: cityId,
-    name: `${latitude}, ${longitude}`, // placeholder — real data from geocoding
-    country: null,
-    countryCode: null,
-    admin1: null,
-    latitude,
-    longitude,
-    timezone: null,
-    population: null,
-  };
+  return createCityFromCoordinates(cityId, latitude, longitude);
 }
 
 /**
